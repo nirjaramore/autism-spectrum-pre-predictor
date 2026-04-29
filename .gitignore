@@ -1,6 +1,29 @@
+# Virtual environment
 venv/
+
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Dataset (VERY IMPORTANT - avoid huge uploads)
 dataset/
-node_modules/
+
+# Model files (large)
+models/
+*.h5
+
+# Output files
+outputs/
+*.png
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+
+# System files
 .DS_Store
+
+# Optional (good practice)
+.env
+.env.*
