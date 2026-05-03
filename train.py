@@ -1,10 +1,12 @@
 # train.py
 
 import tensorflow as tf
+import numpy as np
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
+from sklearn.utils.class_weight import compute_class_weight
 
 # =========================
 # PARAMETERS
@@ -50,8 +52,24 @@ val_data = val_gen.flow_from_directory(
     subset='validation'
 )
 
-# 🔹 Print class mapping (IMPORTANT)
+# 🔹 Print class mapping
 print("Class mapping:", train_data.class_indices)
+
+# =========================
+# CLASS WEIGHTS (IMPORTANT)
+# =========================
+
+labels = train_data.classes
+
+class_weights = compute_class_weight(
+    class_weight='balanced',
+    classes=np.unique(labels),
+    y=labels
+)
+
+class_weights = dict(enumerate(class_weights))
+
+print("Class Weights:", class_weights)
 
 # =========================
 # CNN MODEL (FROM SCRATCH)
@@ -121,8 +139,9 @@ reduce_lr = ReduceLROnPlateau(
 history = model.fit(
     train_data,
     validation_data=val_data,
-    epochs=35,
-    callbacks=[early_stop, checkpoint, reduce_lr]
+    epochs=40,
+    callbacks=[early_stop, checkpoint, reduce_lr],
+    class_weight=class_weights
 )
 
 # =========================

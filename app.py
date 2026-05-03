@@ -2,80 +2,167 @@ import streamlit as st
 import cv2
 import numpy as np
 from predict import predict_image
+from datetime import datetime
 
-# Page settings
-st.set_page_config(page_title="Autism Detection", layout="centered")
+# =============================
+# PAGE CONFIG
+# =============================
+st.set_page_config(page_title="Autism Screening System", layout="wide")
 
-# Custom styling
+# =============================
+# CSS (Hospital UI)
+# =============================
 st.markdown("""
 <style>
-.title {
+.stApp { background-color: #f4f7fb; }
+
+.header {
+    background-color: #0d6efd;
+    padding: 18px;
+    border-radius: 10px;
+    color: white;
     text-align: center;
-    font-size: 42px;
+    font-size: 26px;
     font-weight: bold;
-    color: #2c3e50;
 }
-.subtitle {
-    text-align: center;
-    font-size: 18px;
-    color: #7f8c8d;
-}
-.result {
+
+.card {
+    background: white;
     padding: 20px;
     border-radius: 10px;
-    text-align: center;
-    font-size: 22px;
+    box-shadow: 0px 3px 10px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+}
+
+.label {
     font-weight: bold;
+    color: #34495e;
 }
-.autistic {
-    background-color: #ffe6e6;
-    color: #c0392b;
-}
-.non-autistic {
-    background-color: #eafaf1;
-    color: #27ae60;
-}
+
+.result-good { background:#e8f8f5; color:#1abc9c; padding:12px; border-radius:8px; }
+.result-bad { background:#fdecea; color:#c0392b; padding:12px; border-radius:8px; }
+.result-mid { background:#fff3cd; color:#856404; padding:12px; border-radius:8px; }
+
 </style>
 """, unsafe_allow_html=True)
 
-# Title
-st.markdown('<div class="title">Autism Detection System</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">CNN Model (From Scratch)</div>', unsafe_allow_html=True)
+# =============================
+# HEADER
+# =============================
+st.markdown('<div class="header">Autism Early Screening System</div>', unsafe_allow_html=True)
 
-st.write("")
+# =============================
+# PATIENT FORM
+# =============================
+st.markdown("### Patient Information")
 
-# Upload section
-uploaded_file = st.file_uploader("📤 Upload a Face Image", type=["jpg", "png", "jpeg"])
+colA, colB, colC = st.columns(3)
 
-if uploaded_file is not None:
-    file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-    img = cv2.imdecode(file_bytes, 1)
+with colA:
+    name = st.text_input("Patient Name")
 
-    st.image(img, width=300, caption="Uploaded Image")
+with colB:
+    age = st.number_input("Age", 1, 100)
 
-    if st.button("🔍 Predict"):
-        with st.spinner("Analyzing Image..."):
-            label, confidence = predict_image(img)
+with colC:
+    gender = st.selectbox("Gender", ["Male", "Female"])
 
-        st.write("")
+st.write("---")
 
-        # Show result
-        if label == "Autistic":
-            st.markdown(
-                f'<div class="result autistic">Prediction: {label}<br>Confidence: {confidence:.2f}%</div>',
-                unsafe_allow_html=True
-            )
-        elif label == "Non-Autistic":
-            st.markdown(
-                f'<div class="result non-autistic">Prediction: {label}<br>Confidence: {confidence:.2f}%</div>',
-                unsafe_allow_html=True
-            )
-        else:
-            st.warning("⚠️ No face detected")
+# =============================
+# MAIN LAYOUT
+# =============================
+col1, col2 = st.columns([1,1])
 
-        # Progress bar
-        st.progress(int(confidence))
+# =============================
+# LEFT SIDE (UPLOAD)
+# =============================
+with col1:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown("#### Upload Image")
 
-# Footer
-st.markdown("---")
-st.info("⚠️ This system is for educational purposes only and not a medical diagnostic tool.")
+    uploaded_file = st.file_uploader("", type=["jpg","png","jpeg"])
+
+    if uploaded_file is not None:
+        file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+        img = cv2.imdecode(file_bytes, 1)
+
+        st.image(img, caption="Patient Image", width=300)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# =============================
+# RIGHT SIDE (RESULT)
+# =============================
+with col2:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown("#### Screening Result")
+
+    if uploaded_file is not None:
+        if st.button("Run Screening"):
+            with st.spinner("Processing..."):
+                label, confidence = predict_image(img)
+
+            st.write("")
+
+            if label == "Autistic":
+                st.markdown(f'<div class="result-bad">High Risk<br>{confidence}% Confidence</div>', unsafe_allow_html=True)
+
+            elif label == "Non-Autistic":
+                st.markdown(f'<div class="result-good">Low Risk<br>{confidence}% Confidence</div>', unsafe_allow_html=True)
+
+            elif label == "Uncertain":
+                st.markdown(f'<div class="result-mid">Uncertain Case<br>{confidence}% Confidence</div>', unsafe_allow_html=True)
+
+            else:
+                st.warning("No face detected")
+
+            # Confidence bar
+            st.progress(int(confidence))
+
+            # Save session result
+            result_data = {
+                "Name": name,
+                "Age": age,
+                "Gender": gender,
+                "Result": label,
+                "Confidence": confidence,
+                "Time": datetime.now().strftime("%H:%M:%S")
+            }
+
+            if "history" not in st.session_state:
+                st.session_state.history = []
+
+            st.session_state.history.append(result_data)
+
+            # Download report
+            report = f"""
+            Autism Screening Report
+            -------------------------
+            Name: {name}
+            Age: {age}
+            Gender: {gender}
+            Result: {label}
+            Confidence: {confidence}%
+            Time: {result_data['Time']}
+            """
+
+            st.download_button("Download Report", report, file_name="report.txt")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# =============================
+# HISTORY PANEL
+# =============================
+st.write("### Screening History")
+
+if "history" in st.session_state:
+    st.dataframe(st.session_state.history)
+else:
+    st.info("No history available")
+
+# =============================
+# FOOTER
+# =============================
+st.write("---")
+st.warning("⚠️ This system is for early screening only. Not a medical diagnosis.")
